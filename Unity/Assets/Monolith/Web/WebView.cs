@@ -109,19 +109,19 @@ public class WebView : ConsoleView {
 
                 Action action;
                 switch (request) {
-                    case { IsWebSocketRequest: true }:
+                    case { IsWebSocketRequest: true, }:
                         action = () => HandleWebSocketRequest(context, request);
                         break;
-                    case { HttpMethod: "GET", Url: { AbsolutePath: "/" } }:
+                    case { HttpMethod: "GET", Url: { AbsolutePath: "/", }, }:
                         action = () => ServeFile(response, Path.Combine(_dataPath, "index.html"));
                         break;
-                    case { HttpMethod: "GET", Url: { AbsolutePath: "/log" } }:
+                    case { HttpMethod: "GET", Url: { AbsolutePath: "/log", }, }:
                         action = () => ServeNewLogs(response);
                         break;
-                    case { HttpMethod: "POST", Url: { AbsolutePath: "/command" } }:
+                    case { HttpMethod: "POST", Url: { AbsolutePath: "/command", }, }:
                         action = () => HandleCommand(request);
                         break;
-                    case { HttpMethod: "GET" }:
+                    case { HttpMethod: "GET", }:
                         action = () => {
                             if (File.Exists(filePath)) {
                                 ServeFile(response, filePath);
