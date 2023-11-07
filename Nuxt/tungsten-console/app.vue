@@ -1,5 +1,24 @@
 <script setup lang="ts">
-    import {ref} from 'vue'
+    import {ref} from "vue"
+
+    interface WebSocketMessage<T> {
+        type: string;
+        data: T;
+    }
+
+    // todo: do we need this type?
+    interface Logs {
+        logs: Log[];
+    }
+
+    interface Log {
+        logString: string;
+        stackTrace: string;
+        logType: string;
+        customColor: boolean;
+        // textColor: Color;
+        // bgColor: Color;
+    }
 
     // routes
     const baseUrl: string = "http://localhost:8080";
@@ -13,22 +32,54 @@
     const intervalId = ref<number>(-1);
     const logs = ref<Log[]>([]);
 
-    interface NewLogsResponse {
-        logs: Log[];
-    }
-
-    interface Log {
-        logString: string;
-        stackTrace: string;
-        logType: string;
-        customColor: boolean;
-        // textColor: Color;
-        // bgColor: Color;
-    }
-
     onMounted(() => {
         // start fetching logs
-        intervalId.value = setInterval(() => { fetchNewLogs(); }, intervalTimeout) as unknown as number;
+        // intervalId.value = setInterval(() => {
+        //     fetchNewLogs();
+        // }, intervalTimeout) as unknown as number;
+
+        let socket: WebSocket = new WebSocket("ws://localhost:8080/");
+
+        socket.onopen = function(event) {
+            console.log("Server connection opened");
+        };
+
+        // connection opened
+        // socket.addEventListener("open", function (event) {
+            // console.log("Server connection opened");
+            // socket.send("Hello Server!");
+        // });
+
+        // connection closed
+        // socket.addEventListener("close", function (event) {
+            // console.log("Server connection closed: ", event.code);
+        // });
+
+        // listen for messages
+        // socket.addEventListener("message", function (event) {
+            // let message = JSON.parse(event.data);
+// 
+            // console.log("Message from server: ", event.data);
+// 
+            // switch(message.type) {
+                // case "logs_new":
+                    // let newLogs: Logs = message.data;
+                    // logs.value.push(...newLogs.logs);
+                // break;
+// 
+                // default:
+                    // console.error(`Unknown message type: ${message.type}`);
+            // }
+        // });
+
+        // listen for errors
+        // socket.addEventListener("error", function (event) {
+            // console.log("Error from server: ", event)
+        // });
+
+        socket.onerror = function(event) {
+            console.log("Error from server: ", event)
+        };
     });
 
     async function fetchNewLogs() {
@@ -41,14 +92,14 @@
 
         await fetch(`${baseUrl}${logUrl}`, {
             method: "GET",
-            headers: { "Content-Type": "application/json" },
+            headers: {"Content-Type": "application/json"},
         }).then((data: Response) => {
             if (!data.ok) {
                 console.error(`Failed to fetch new logs ${data.status}`);
                 return;
             }
 
-            data.json().then((newLogs: NewLogsResponse) => {
+            data.json().then((newLogs: Logs) => {
                 logs.value.push(...newLogs.logs);
             }).catch((error) => {
                 // todo display a toast notification with the error
@@ -73,8 +124,8 @@
     function submitCommand() {
         fetch(`${baseUrl}${commandUrl}`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ command: input.value })
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({command: input.value})
         });
 
         input.value = "";
@@ -114,36 +165,36 @@
 </template>
 
 <style scoped>
-    .console {
-        width: 100vw;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        margin: 0;
-    }
+.console {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+}
 
-    .log {
-        flex: 1;
-        overflow-y: auto;
-    }
+.log {
+    flex: 1;
+    overflow-y: auto;
+}
 
-    .log-entry {
-        padding: 16px;
-    }
+.log-entry {
+    padding: 16px;
+}
 
-    .input {
-        width: 100%;
-        padding: 16px;
-        display: flex;
-        flex-direction: row;
-    }
-    
-    .command {
-        flex: 1;
-    }
+.input {
+    width: 100%;
+    padding: 16px;
+    display: flex;
+    flex-direction: row;
+}
 
-    .search {
-        margin-left: 16px;
-        width: 300px;
-    }
+.command {
+    flex: 1;
+}
+
+.search {
+    margin-left: 16px;
+    width: 300px;
+}
 </style>

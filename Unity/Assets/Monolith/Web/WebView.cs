@@ -20,11 +20,30 @@ using Debug = UnityEngine.Debug;
 public class WebView : ConsoleView {
 
 #region Types
+    public class WebSocketMessage<T> {
+        public string type;
+        public T data;
+    }
+
     [Serializable]
     private struct NewLogsResponse {
         public ConsoleLog[] logs;
     }
 #endregion Types
+
+#region Fields
+    private HttpListener _listener;
+    private Thread _listenerThread;
+    private string _dataPath;
+
+    /// <summary>
+    /// Queue of logs that have been added since the last time the queue was processed.
+    /// Should we store this per client?
+    /// </summary>
+    private readonly Queue<ConsoleLog> _logQueue = new();
+
+    private readonly Queue<Action> _actionQueue = new();
+#endregion Fields
 
 #region Public
     public override bool IsActive { get; protected set; }
@@ -50,9 +69,8 @@ public class WebView : ConsoleView {
     }
 
     protected override void OnDestroy() {
-        base.OnDestroy();
-
         Cleanup();
+        base.OnDestroy();
     }
 
     protected override void OnConsoleLogHistoryChanged() {
@@ -63,18 +81,6 @@ public class WebView : ConsoleView {
 #endregion Protected
 
 #region Private
-    private HttpListener _listener;
-    private Thread _listenerThread;
-    private string _dataPath;
-
-    /// <summary>
-    /// Queue of logs that have been added since the last time the queue was processed.
-    /// Should we store this per client?
-    /// </summary>
-    private readonly Queue<ConsoleLog> _logQueue = new();
-
-    private Queue<Action> _actionQueue = new();
-
     private void Update() {
         // process action queue
         while (_actionQueue.Count > 0) {
@@ -154,8 +160,10 @@ public class WebView : ConsoleView {
     }
 
     private async void HandleWebSocketRequest(HttpListenerContext context,  HttpListenerRequest request) {
-        HttpListenerWebSocketContext webSocket = await context.AcceptWebSocketAsync(null);
-        HandleWebSocket(webSocket.WebSocket);
+        Debug.Log("[Console] [WebView] WebSocket request received.");
+
+        HttpListenerWebSocketContext webSocketContext = await context.AcceptWebSocketAsync(null);
+        HandleWebSocket(webSocketContext.WebSocket);
     }
 
     private async void HandleWebSocket(WebSocket webSocket) {
@@ -165,7 +173,26 @@ public class WebView : ConsoleView {
         do {
             result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
+            if(_logQueue.Count > 0) {
+                NewLogsResponse outputObj = new() {
+                    logs = _logQueue.ToArray(),
+                };
+
+                _logQueue.Clear();
+
+                WebSocketMessage<NewLogsResponse> message = new() {
+                    type = "logs_new",
+                    data = outputObj,
+                };
+                string outStr = JsonConvert.SerializeObject(message, new ColorJsonConverter());
+
+                buffer = Encoding.UTF8.GetBytes(outStr);
+                await webSocket.SendAsync(new ArraySegment<byte>(buffer, 0, buffer.Length), WebSocketMessageType.Text, true, CancellationToken.None);
+            }
+
         } while (result.CloseStatus.HasValue == false);
+
+        Debug.Log($"[Console] [WebView] WebSocket closed: {result.CloseStatus.Value} {result.CloseStatusDescription}");
     }
 
     private void HandleCommand(HttpListenerRequest request) {
