@@ -7,21 +7,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 using UnityEngine;
+
 using Debug = UnityEngine.Debug;
 
 namespace Monolith {
 public class Console : MonoBehaviour {
-
-#region Properties
-    public static bool IsActive => _instance != null;
-
-    public static ConsoleHistory ConsoleHistory => _instance._config.ConsoleHistory;
-
-    public static string HelpTextFormat {
-        get => _instance._helpTextFormat;
-        set => _instance._helpTextFormat = value;
-    }
-#endregion Properties
 
 #region Fields
     [Header("Console Config")]
@@ -59,9 +49,28 @@ public class Console : MonoBehaviour {
     private string _helpTextFormat = "{0} : {1}";
 
     private static readonly Dictionary<string, ConsoleCommand> _commands = new();
+
+    // private Action _logHistoryChanged;
+    private Action _newLogAdded;
+    private readonly List<string> _commandHistory = new();
 #endregion Fields
 
-#region Public Methods
+#region Public
+    public static bool IsActive => _instance != null;
+
+    // public static ConsoleHistory ConsoleHistory => _instance._config.ConsoleHistory;
+
+    public static string HelpTextFormat {
+        get => _instance._helpTextFormat;
+        set => _instance._helpTextFormat = value;
+    }
+
+    public static List<ConsoleLog> LogHistory { get; } = new();
+
+    public ConsoleLog LatestLog => LogHistory[^1];
+
+    public int CommandHistoryCount => _commandHistory.Count;
+
     public static void Log(string logString, LogType logType = LogType.Log, bool doStackTrace = true) {
         CreateLog(logString, logType, doStackTrace, false, Color.white, Color.black);
     }
@@ -98,15 +107,10 @@ public class Console : MonoBehaviour {
         return _commands.Values.OrderBy(c => c.commandName).ToList();
     }
 
-    public static List<ConsoleLog> GetHistoryConsoleLogs() {
-        return ConsoleHistory.LogHistory;
-    }
-
     public static string GetHistoryString(bool stripRichText = false) {
-        var history = GetHistoryConsoleLogs();
         var stringBuilder = new StringBuilder();
 
-        foreach (var log in history) {
+        foreach (var log in LogHistory) {
             stringBuilder.AppendLine(log.logString.Trim());
             if (log.stackTrace != "") {
                 stringBuilder.AppendLine(log.stackTrace.Trim());
@@ -176,9 +180,17 @@ public class Console : MonoBehaviour {
 
         return path.Replace("\\", "/");
     }
-#endregion Public Methods
 
-#region Private Methods
+    public void AddLogAddedListener(Action callback) {
+        _newLogAdded += callback;
+    }
+
+    public void RemoveLogAddedListener(Action callback) {
+        _newLogAdded -= callback;
+    }
+#endregion Public
+
+#region Private
     private void Awake() {
         // Setup instance.
         if (_instance == null) {
@@ -219,14 +231,27 @@ public class Console : MonoBehaviour {
     }
 
     private static void CreateLog(
-        string logString, LogType logType, bool doStackTrace, bool customColor, Color textColor, Color bgColor) {
-        var stackTrace = doStackTrace ? new StackTrace().ToString() : string.Empty;
-        var newLog = new ConsoleLog(logString, stackTrace, logType, customColor, textColor, bgColor);
+    string logString,
+    LogType logType,
+    bool doStackTrace,
+    bool customColor,
+    Color textColor,
+    Color bgColor) {
+        string stackTrace = doStackTrace ? new StackTrace().ToString() : string.Empty;
+        ConsoleLog newLog = new ConsoleLog(logString, stackTrace, logType, DateTime.Now, customColor, textColor, bgColor);
         ConsoleHistory.AddLog(newLog);
     }
 
     private static void CreateLog(string logString, string stackTrace, LogType logType) {
-        var newLog = new ConsoleLog(logString, stackTrace, logType, false, Color.white, Color.black);
+        ConsoleLog newLog = new(
+            logString,
+            stackTrace,
+            logType,
+            DateTime.Now,
+            false,
+            Color.white,
+            Color.black
+        );
         ConsoleHistory.AddLog(newLog);
     }
 
@@ -237,10 +262,18 @@ public class Console : MonoBehaviour {
 
         List<string> cmdSplit = ParseArguments(commandString);
 
-        var cmdName = cmdSplit[0].ToLower();
+        string cmdName = cmdSplit[0].ToLower();
         cmdSplit.RemoveAt(0);
 
-        var newLog = new ConsoleLog("> " + commandString, "", LogType.Log, false, Color.white, Color.black);
+        ConsoleLog newLog = new(
+            $"> {commandString}",
+            "",
+            LogType.Log,
+            DateTime.Now,
+            false,
+            Color.white,
+            Color.black
+        );
         ConsoleHistory.AddLog(newLog);
 
         try {
@@ -305,7 +338,7 @@ public class Console : MonoBehaviour {
 
         CreateLog(logString, stackTrace, logType);
     }
-#endregion Private Methods
+#endregion Private
 
 }
 }

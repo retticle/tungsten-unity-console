@@ -2,28 +2,31 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-
-using Monolith;
-using Monolith.Web;
 
 using Newtonsoft.Json;
 
 using UnityEngine;
 
-using Console = Monolith.Console;
-using Debug = UnityEngine.Debug;
-
+namespace Monolith.Web {
 public class WebView : ConsoleView {
 
 #region Types
-    public class WebSocketMessage<T> {
-        public string type;
-        public T data;
-    }
+    // public class WebSocketMessage<T> {
+    //     public string type;
+    //     public T data;
+    // }
+
+    // public struct Route {
+        // public readonly string httpMethod;
+        // public readonly string path;
+
+        // public Route(string httpMethod, string path) {
+            // this.httpMethod = httpMethod;
+            // this.path = path;
+        // }
+    // }
 
     [Serializable]
     private struct NewLogsResponse {
@@ -32,9 +35,13 @@ public class WebView : ConsoleView {
 #endregion Types
 
 #region Fields
+    private const int PORT = 8181;
+
     private HttpListener _listener;
     private Thread _listenerThread;
     private string _dataPath;
+
+    // private Dictionary<Route, Action> _routeActions = new();
 
     /// <summary>
     /// Queue of logs that have been added since the last time the queue was processed.
@@ -62,7 +69,7 @@ public class WebView : ConsoleView {
         _dataPath = $"{Application.dataPath}/www";
 
         _listener = new HttpListener();
-        _listener.Prefixes.Add("http://*:8080/"); // Bind to all IPs on the machine, port 8080.
+        _listener.Prefixes.Add($"http://*:{PORT}/"); // Bind to all IPs on the machine, port 8080.
 
         _listenerThread = new Thread(StartListener);
         _listenerThread.Start();
@@ -105,43 +112,30 @@ public class WebView : ConsoleView {
                 string requestedPath = request.Url.AbsolutePath;
                 string filePath = Path.Combine(_dataPath, requestedPath.TrimStart('/'));
 
-                // Dictionary<(string path, string method), Action> blorp = new() {
-                //     { ("/", "GET"), () => { ServeFile(response, Path.Combine(_dataPath, "index.html")); } },
-                //     { ("/", "GET"), () => { ServeFile(response, Path.Combine(_dataPath, "index.html")); } },
-                // };
-                //
-                // Action requestHandler = blorp[(request.Url.AbsolutePath, request.HttpMethod)];
-                // requestHandler?.Invoke();
-
                 Action action;
-                switch (request) {
-                    case { IsWebSocketRequest: true, }:
-                        action = () => HandleWebSocketRequest(context, request);
-                        break;
-                    case { HttpMethod: "GET", Url: { AbsolutePath: "/", }, }:
-                        action = () => ServeFile(response, Path.Combine(_dataPath, "index.html"));
-                        break;
-                    case { HttpMethod: "GET", Url: { AbsolutePath: "/log", }, }:
-                        action = () => ServeNewLogs(response);
-                        break;
-                    case { HttpMethod: "POST", Url: { AbsolutePath: "/command", }, }:
-                        action = () => HandleCommand(request);
-                        break;
-                    case { HttpMethod: "GET", }:
-                        action = () => {
-                            if (File.Exists(filePath)) {
-                                ServeFile(response, filePath);
-                            }
-                            else {
-                                response.StatusCode = 404;
-                                response.StatusDescription = "File not found.";
-                                response.Close();
-                            }
-                        };
-                        break;
-                    default:
-                        action = null;
-                        break;
+                if (request is { HttpMethod: "GET", Url: { AbsolutePath: "/", }, }) {
+                    action = () => ServeFile(response, Path.Combine(_dataPath, "index.html"));
+                }
+                else if (request is { HttpMethod: "GET", Url: { AbsolutePath: "/log", }, }) {
+                    action = () => ServeNewLogs(response);
+                }
+                else if (request is { HttpMethod: "POST", Url: { AbsolutePath: "/command", }, }) {
+                    action = () => HandleCommand(request);
+                }
+                else if (request is { HttpMethod: "GET", }) {
+                    action = () => {
+                        if (File.Exists(filePath)) {
+                            ServeFile(response, filePath);
+                        }
+                        else {
+                            response.StatusCode = 404;
+                            response.StatusDescription = "File not found.";
+                            response.Close();
+                        }
+                    };
+                }
+                else {
+                    action = null;
                 }
 
                 action?.Invoke();
@@ -159,41 +153,46 @@ public class WebView : ConsoleView {
         }
     }
 
-    private async void HandleWebSocketRequest(HttpListenerContext context,  HttpListenerRequest request) {
-        Debug.Log("[Console] [WebView] WebSocket request received.");
+    // private async void HandleWebSocketRequest(HttpListenerContext context,  HttpListenerRequest request) {
+    //     Debug.Log("[Console] [WebView] WebSocket request received.");
+    //
+    //     string subProtocol = request.Headers["Sec-WebSocket-Protocol"];
+    //     HttpListenerWebSocketContext webSocketContext = await context.AcceptWebSocketAsync(subProtocol);
+    //     HandleWebSocket(webSocketContext.WebSocket);
+    // }
 
-        HttpListenerWebSocketContext webSocketContext = await context.AcceptWebSocketAsync(null);
-        HandleWebSocket(webSocketContext.WebSocket);
-    }
-
-    private async void HandleWebSocket(WebSocket webSocket) {
-        var buffer = new byte[1024];
-        WebSocketReceiveResult result;
-
-        do {
-            result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
-            if(_logQueue.Count > 0) {
-                NewLogsResponse outputObj = new() {
-                    logs = _logQueue.ToArray(),
-                };
-
-                _logQueue.Clear();
-
-                WebSocketMessage<NewLogsResponse> message = new() {
-                    type = "logs_new",
-                    data = outputObj,
-                };
-                string outStr = JsonConvert.SerializeObject(message, new ColorJsonConverter());
-
-                buffer = Encoding.UTF8.GetBytes(outStr);
-                await webSocket.SendAsync(new ArraySegment<byte>(buffer, 0, buffer.Length), WebSocketMessageType.Text, true, CancellationToken.None);
-            }
-
-        } while (result.CloseStatus.HasValue == false);
-
-        Debug.Log($"[Console] [WebView] WebSocket closed: {result.CloseStatus.Value} {result.CloseStatusDescription}");
-    }
+    // private async void HandleWebSocket(WebSocket webSocket) {
+    //     Debug.Log("[Console] [WebView] WebSocket opened.");
+    //
+    //     var buffer = new byte[1024];
+    //     WebSocketReceiveResult result;
+    //
+    //     do {
+    //         result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+    //
+    //         string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
+    //         Debug.Log($"[Console] [WebView] Received message: {receivedMessage}");
+    //
+    //         if(_logQueue.Count > 0) {
+    //             NewLogsResponse outputObj = new() {
+    //                 logs = _logQueue.ToArray(),
+    //             };
+    //
+    //             _logQueue.Clear();
+    //
+    //             WebSocketMessage<NewLogsResponse> message = new() {
+    //                 type = "logs_new",
+    //                 data = outputObj,
+    //             };
+    //             string outStr = JsonConvert.SerializeObject(message, new ColorJsonConverter());
+    //
+    //             buffer = Encoding.UTF8.GetBytes(outStr);
+    //             await webSocket.SendAsync(new ArraySegment<byte>(buffer, 0, buffer.Length), WebSocketMessageType.Text, true, CancellationToken.None);
+    //         }
+    //     } while (result.CloseStatus.HasValue == false);
+    //
+    //     Debug.Log($"[Console] [WebView] WebSocket closed: {result.CloseStatus.Value} {result.CloseStatusDescription}");
+    // }
 
     private void HandleCommand(HttpListenerRequest request) {
         using StreamReader reader = new(request.InputStream, request.ContentEncoding);
@@ -229,6 +228,12 @@ public class WebView : ConsoleView {
         output.Close();
     }
 
+    // private bool IsWebSocketUpgrade(HttpListenerRequest request) {
+    //     return
+    //         request.Headers["Upgrade"]?.ToLower() == "websocket"
+    //      && request.Headers["Connection"]?.ToLower() == "upgrade";
+    // }
+
     private static string GetMimeType(string filePath) {
         string extension = Path.GetExtension(filePath).ToLower();
         return extension switch {
@@ -245,4 +250,5 @@ public class WebView : ConsoleView {
     }
 #endregion Private
 
+}
 }

@@ -5,7 +5,6 @@ using Newtonsoft.Json;
 using UnityEngine;
 
 namespace Monolith.Web {
-
 public class ColorJsonConverter : JsonConverter {
 
     public override bool CanConvert(Type objectType) {
@@ -29,5 +28,4 @@ public class ColorJsonConverter : JsonConverter {
     }
 
 }
-
 }

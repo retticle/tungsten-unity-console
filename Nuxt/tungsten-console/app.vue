@@ -21,11 +21,16 @@
     }
 
     // routes
-    const baseUrl: string = "http://localhost:8080";
-    const logUrl: string = "/log";
-    const commandUrl: string = "/command";
+    const port: number = 8181;
+    const httpUrl: string = `http://localhost:${port}`;
+    const wsUrl: string = `ws://localhost:${port}`;
+
+    const logRoute: string = "/log";
+    const commandRoute: string = "/command";
 
     const input = ref<string>("");
+
+    let socket: WebSocket;
 
     // logs
     const intervalTimeout: number = 100;
@@ -34,63 +39,48 @@
 
     onMounted(() => {
         // start fetching logs
-        // intervalId.value = setInterval(() => {
-        //     fetchNewLogs();
-        // }, intervalTimeout) as unknown as number;
+        intervalId.value = setInterval(() => {
+            fetchNewLogs();
+        }, intervalTimeout) as unknown as number;
 
-        let socket: WebSocket = new WebSocket("ws://localhost:8080/");
-
-        socket.onopen = function(event) {
-            console.log("Server connection opened");
-        };
-
-        // connection opened
+        // socket = new WebSocket(wsUrl);
+        //
+        // // connection opened
         // socket.addEventListener("open", function (event) {
-            // console.log("Server connection opened");
-            // socket.send("Hello Server!");
+        //     console.log("Server connection opened");
+        //     socket.send("Hello Server!");
         // });
-
-        // connection closed
+        //
+        // // connection closed
         // socket.addEventListener("close", function (event) {
-            // console.log("Server connection closed: ", event.code);
+        //     console.log("Server connection closed: ", event.code);
         // });
-
-        // listen for messages
+        //
+        // // listen for messages
         // socket.addEventListener("message", function (event) {
-            // let message = JSON.parse(event.data);
-// 
-            // console.log("Message from server: ", event.data);
-// 
-            // switch(message.type) {
-                // case "logs_new":
-                    // let newLogs: Logs = message.data;
-                    // logs.value.push(...newLogs.logs);
-                // break;
-// 
-                // default:
-                    // console.error(`Unknown message type: ${message.type}`);
-            // }
+        //     let message = JSON.parse(event.data);
+        //
+        //     console.log("Message from server: ", event.data);
+        //
+        //     switch(message.type) {
+        //         case "logs_new":
+        //             let newLogs: Logs = message.data;
+        //             logs.value.push(...newLogs.logs);
+        //         break;
+        //
+        //         default:
+        //             console.error(`Unknown message type: ${message.type}`);
+        //     }
         // });
-
-        // listen for errors
+        //
+        // // listen for errors
         // socket.addEventListener("error", function (event) {
-            // console.log("Error from server: ", event)
+        //     console.log("Error from server: ", event)
         // });
-
-        socket.onerror = function(event) {
-            console.log("Error from server: ", event)
-        };
     });
 
     async function fetchNewLogs() {
-        // fetchData<NewLogsResponse>(`${baseUrl}${logUrl}`).then((data) => {
-        //     // add new logs to the list
-        //     logs.value.push(...data.logs);
-        // }).catch((error) => {
-        //     console.log(error);
-        // });
-
-        await fetch(`${baseUrl}${logUrl}`, {
+        await fetch(`${httpUrl}${logRoute}`, {
             method: "GET",
             headers: {"Content-Type": "application/json"},
         }).then((data: Response) => {
@@ -111,18 +101,8 @@
         });
     }
 
-    // async function fetchData<T>(url: string): Promise<T> {
-    //     const response: Response = await fetch(url);
-    //
-    //     if (!response.ok) {
-    //         throw new Error(`HTTP error! Status: ${response.status}`);
-    //     }
-    //
-    //     return await response.json() as T;
-    // }
-
     function submitCommand() {
-        fetch(`${baseUrl}${commandUrl}`, {
+        fetch(`${httpUrl}${commandRoute}`, {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({command: input.value})
