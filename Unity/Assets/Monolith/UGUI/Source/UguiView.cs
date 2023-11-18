@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 
@@ -9,11 +10,7 @@ using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace Monolith.UGUI {
-public class UguiView : ConsoleView {
-
-#region Properties
-    public override bool IsActive { get; protected set; }
-#endregion Properties
+public class UguiView : MonoBehaviour {
 
 #region Fields
     [Header("Main"), SerializeField,]
@@ -85,28 +82,14 @@ public class UguiView : ConsoleView {
     private int _commandHistoryDelta;
 #endregion Fields
 
-#region Public Methods
-    public override void ClearConsoleView() {
-        base.ClearConsoleView();
-
-        for (var i = 0; i < _logViewHistory.Count; i++) {
-            PoolLog(_logViewHistory[i]);
-        }
-
-        _logViewHistory.Clear();
-
-        ResizeLogLayout();
-    }
-
+#region Public
     public void OpenStackTraceForLog(ConsoleLog consoleLog) {
         _stackTrace.Open(consoleLog);
     }
-#endregion Public Methods
+#endregion Public
 
-#region Private Methods
-    protected override void Awake() {
-        base.Awake();
-
+#region Private
+    protected void Awake() {
         _instantiatedColorSet = Instantiate(_colorSetAsset);
 
         // Main.
@@ -131,6 +114,9 @@ public class UguiView : ConsoleView {
         // StackTrace window.
         _stackTrace = Instantiate(stackTracePrefab, transform.parent, false);
         _stackTrace.ColorSet = _instantiatedColorSet;
+
+        // Subscribe to log added event.
+        Console.AddLogAddedListener(OnLogAdded);
     }
 
     private void Update() {
@@ -220,21 +206,16 @@ public class UguiView : ConsoleView {
         if (enable) {
             _commandInputField.ActivateInputField();
         }
-
-        IsActive = enable;
     }
 
     private void CloseButtonHandler(Button target) {
         ToggleState();
     }
 
-    protected override void OnConsoleLogHistoryChanged() {
-        base.OnConsoleLogHistoryChanged();
-
+    private void OnLogAdded(ConsoleLog consoleLog) {
         var obeliskLog = _obeliskLogPool.Dequeue();
         obeliskLog.transform.SetParent(_logLayout, false);
 
-        var consoleLog = Monolith.Console.ConsoleHistory.LatestLog;
         obeliskLog.SetLog(ref consoleLog);
 
         AddLogViewHistory(obeliskLog);
@@ -358,26 +339,29 @@ public class UguiView : ConsoleView {
     }
 
     private void CommandSetPrevious(int direction) {
-        var commandHistoryCount = Monolith.Console.ConsoleHistory.CommandHistoryCount;
+        ReadOnlyCollection<string> commandHistory = Console.CommandHistory;
+        int commandHistoryCount = commandHistory.Count;
 
-        if (commandHistoryCount > 0) {
-            // Calculate commandHistory Delta.
-            // This is the distance from the present, into the history of commands.
-            // Needs to be between 0, and commandHistoryCount.
-            _commandHistoryDelta = Mathf.Clamp(_commandHistoryDelta + direction, 0, commandHistoryCount);
+        if (commandHistoryCount <= 0) {
+            return;
+        }
 
-            // Calculate history index.
-            // This is the index of the command we will be accessing.
-            // Needs to be between 0, and commandHistoryCount - 1.
-            var index = Mathf.Clamp(commandHistoryCount - 1 - (_commandHistoryDelta - 1), 0, commandHistoryCount - 1);
+        // Calculate commandHistory Delta.
+        // This is the distance from the present, into the history of commands.
+        // Needs to be between 0, and commandHistoryCount.
+        _commandHistoryDelta = Mathf.Clamp(_commandHistoryDelta + direction, 0, commandHistoryCount);
 
-            if (_commandHistoryDelta == 0) {
-                _commandInputField.text = "";
-            }
-            else {
-                _commandInputField.text = Monolith.Console.ConsoleHistory.GetCommandHistoryWithIndex(index);
-                _commandInputField.caretPosition = _commandInputField.text.Length;
-            }
+        // Calculate history index.
+        // This is the index of the command we will be accessing.
+        // Needs to be between 0, and commandHistoryCount - 1.
+        int index = Mathf.Clamp(commandHistoryCount - 1 - (_commandHistoryDelta - 1), 0, commandHistoryCount - 1);
+
+        if (_commandHistoryDelta == 0) {
+            _commandInputField.text = "";
+        }
+        else {
+            _commandInputField.text = commandHistory[index];
+            _commandInputField.caretPosition = _commandInputField.text.Length;
         }
     }
 
@@ -421,7 +405,7 @@ public class UguiView : ConsoleView {
 
         Monolith.Console.Log(stringBuilder.ToString(), LogType.Log, false);
     }
-#endregion Private Methods
+#endregion Private
 
 }
 }

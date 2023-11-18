@@ -10,7 +10,7 @@ using Newtonsoft.Json;
 using UnityEngine;
 
 namespace Monolith.Web {
-public class WebView : ConsoleView {
+public class WebView : MonoBehaviour {
 
 #region Types
     // public class WebSocketMessage<T> {
@@ -53,19 +53,11 @@ public class WebView : ConsoleView {
 #endregion Fields
 
 #region Public
-    public override bool IsActive { get; protected set; }
-
-    public override void ClearConsoleView() {
-        base.ClearConsoleView();
-    }
 #endregion Public
 
-#region Protected
-    protected override void Awake() {
-        base.Awake();
-
-        IsActive = true;
-
+#region Private
+    private void Awake() {
+        // todo: can we use resources instead?
         _dataPath = $"{Application.dataPath}/www";
 
         _listener = new HttpListener();
@@ -73,21 +65,18 @@ public class WebView : ConsoleView {
 
         _listenerThread = new Thread(StartListener);
         _listenerThread.Start();
+
+        Console.AddLogAddedListener(OnLogAdded);
     }
 
-    protected override void OnDestroy() {
+    private void OnDestroy() {
         Cleanup();
-        base.OnDestroy();
     }
 
-    protected override void OnConsoleLogHistoryChanged() {
-        base.OnConsoleLogHistoryChanged();
-
-        _logQueue.Enqueue(Monolith.Console.ConsoleHistory.LatestLog);
+    private void OnLogAdded(ConsoleLog consoleLog) {
+        _logQueue.Enqueue(consoleLog);
     }
-#endregion Protected
 
-#region Private
     private void Update() {
         // process action queue
         while (_actionQueue.Count > 0) {

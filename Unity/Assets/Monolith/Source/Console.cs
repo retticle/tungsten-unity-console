@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -8,14 +9,15 @@ using System.Text.RegularExpressions;
 
 using UnityEngine;
 
-using Debug = UnityEngine.Debug;
-
 namespace Monolith {
 public class Console : MonoBehaviour {
 
 #region Fields
-    [Header("Console Config")]
-    [SerializeField] private ConsoleConfig _config;
+    /// <summary>
+    /// A scriptable object that contains the configuration for the console.
+    /// This is lazy loaded on first use.
+    /// </summary>
+    private static ConsoleConfig _config;
 
     /// <summary>
     /// Tests whether a string is a drive root. e.g. "D:\"
@@ -42,34 +44,17 @@ public class Console : MonoBehaviour {
     /// </summary>
     private static readonly Regex IsWrappedInQuotes = new(REGEX_QUOTE_WRAPPED);
 
-    private static Console _instance;
-
-    private ConsoleView[] _views;
-
-    private string _helpTextFormat = "{0} : {1}";
+    private const string _helpTextFormat = "{0} : {1}";
 
     private static readonly Dictionary<string, ConsoleCommand> _commands = new();
 
-    // private Action _logHistoryChanged;
-    private Action _newLogAdded;
-    private readonly List<string> _commandHistory = new();
+    private static Action<ConsoleLog> _newLogAdded;
+    private static readonly List<string> _commandHistory = new();
+    private static readonly List<ConsoleLog> _logHistory = new();
 #endregion Fields
 
 #region Public
-    public static bool IsActive => _instance != null;
-
-    // public static ConsoleHistory ConsoleHistory => _instance._config.ConsoleHistory;
-
-    public static string HelpTextFormat {
-        get => _instance._helpTextFormat;
-        set => _instance._helpTextFormat = value;
-    }
-
-    public static List<ConsoleLog> LogHistory { get; } = new();
-
-    public ConsoleLog LatestLog => LogHistory[^1];
-
-    public int CommandHistoryCount => _commandHistory.Count;
+    public static ReadOnlyCollection<string> CommandHistory => _commandHistory.AsReadOnly();
 
     public static void Log(string logString, LogType logType = LogType.Log, bool doStackTrace = true) {
         CreateLog(logString, logType, doStackTrace, false, Color.white, Color.black);
@@ -95,6 +80,7 @@ public class Console : MonoBehaviour {
         CreateLog(logString, LogType.Exception, true, false, Color.white, Color.black);
     }
 
+    // todo: add remove command equivalent?
     public static void AddCommand(string commandName, CommandHandler handler, string helpText) {
         _commands.Add(commandName.ToLowerInvariant(), new ConsoleCommand(commandName, handler, helpText));
     }
@@ -110,7 +96,7 @@ public class Console : MonoBehaviour {
     public static string GetHistoryString(bool stripRichText = false) {
         var stringBuilder = new StringBuilder();
 
-        foreach (var log in LogHistory) {
+        foreach (var log in _logHistory) {
             stringBuilder.AppendLine(log.logString.Trim());
             if (log.stackTrace != "") {
                 stringBuilder.AppendLine(log.stackTrace.Trim());
@@ -125,26 +111,20 @@ public class Console : MonoBehaviour {
     }
 
     /// <summary>
-    ///     Copy console history to the clipboard (<see cref="GUIUtility.systemCopyBuffer" />).
+    /// Copy console history to the clipboard (<see cref="GUIUtility.systemCopyBuffer" />).
     /// </summary>
     public static void CopyHistoryToClipboard(bool stripRichText = false) {
         GUIUtility.systemCopyBuffer = GetHistoryString(stripRichText);
     }
 
-    public static void ClearConsoleView() {
-        for(int i = 0; i < _instance._views.Length; i++) {
-            _instance._views[i].ClearConsoleView();
-        }
-    }
-
     public static void PrintHelpText() {
         foreach (var command in _commands.Values.OrderBy(c => c.commandName)) {
-            Log(string.Format(_instance._helpTextFormat, command.commandName, command.helpText), LogType.Log, false);
+            Log(string.Format(_helpTextFormat, command.commandName, command.helpText), LogType.Log, false);
         }
     }
 
     /// <summary>
-    ///     Save console history to a log file and return the file's path.
+    /// Save console history to a log file and return the file's path.
     /// </summary>
     public static string SaveHistoryToLogFile(string path = "", string prefix = "console", bool stripRichText = false) {
         path = path.Trim();
@@ -181,36 +161,34 @@ public class Console : MonoBehaviour {
         return path.Replace("\\", "/");
     }
 
-    public void AddLogAddedListener(Action callback) {
+    public static void AddLogAddedListener(Action<ConsoleLog> callback) {
         _newLogAdded += callback;
     }
 
-    public void RemoveLogAddedListener(Action callback) {
+    public static void RemoveLogAddedListener(Action<ConsoleLog> callback) {
         _newLogAdded -= callback;
     }
 #endregion Public
 
 #region Private
+    private static ConsoleConfig ConsoleConfig {
+        get {
+            if (_config == null) {
+                _config = Resources.Load<ConsoleConfig>("ConsoleConfig");
+            }
+
+            return _config;
+        }
+    }
+
     private void Awake() {
-        // Setup instance.
-        if (_instance == null) {
-            _instance = this;
-        }
-        else {
-            Debug.LogError("[Tungsten] [Console] there is already an instance of Console!");
-            Destroy(gameObject);
-        }
-
-        // instantiate front-ends
-        InstantiateViews();
-
         // Set dont destroy on load to this object.
-        if (_config.SurviveSceneChanges) {
+        if (ConsoleConfig.SurviveSceneChanges) {
             DontDestroyOnLoad(gameObject);
         }
 
         // Add core commands.
-        if (_config.EnableCoreCommands) {
+        if (ConsoleConfig.EnableCoreCommands) {
             ConsoleCoreCommands.AddCoreCommands();
         }
     }
@@ -223,13 +201,6 @@ public class Console : MonoBehaviour {
         Application.logMessageReceived -= HandleUnityLog;
     }
 
-    private void InstantiateViews() {
-        _views = new ConsoleView[_config.Views.Length];
-        for(int i = 0; i < _config.Views.Length; i++) {
-            _views[i] = Instantiate(_config.Views[i], transform, false);
-        }
-    }
-
     private static void CreateLog(
     string logString,
     LogType logType,
@@ -239,7 +210,8 @@ public class Console : MonoBehaviour {
     Color bgColor) {
         string stackTrace = doStackTrace ? new StackTrace().ToString() : string.Empty;
         ConsoleLog newLog = new ConsoleLog(logString, stackTrace, logType, DateTime.Now, customColor, textColor, bgColor);
-        ConsoleHistory.AddLog(newLog);
+        _logHistory.Add(newLog);
+        _newLogAdded?.Invoke(newLog);
     }
 
     private static void CreateLog(string logString, string stackTrace, LogType logType) {
@@ -252,11 +224,12 @@ public class Console : MonoBehaviour {
             Color.white,
             Color.black
         );
-        ConsoleHistory.AddLog(newLog);
+        _logHistory.Add(newLog);
+        _newLogAdded?.Invoke(newLog);
     }
 
     private static void ParseCommand(string commandString) {
-        ConsoleHistory.AddCommandHistory(commandString);
+        _commandHistory.Add(commandString);
 
         commandString = commandString.Trim();
 
@@ -274,7 +247,8 @@ public class Console : MonoBehaviour {
             Color.white,
             Color.black
         );
-        ConsoleHistory.AddLog(newLog);
+        _logHistory.Add(newLog);
+        _newLogAdded?.Invoke(newLog);
 
         try {
             _commands[cmdName].handler(cmdSplit.ToArray());
@@ -301,7 +275,7 @@ public class Console : MonoBehaviour {
         return args;
     }
 
-    private void HandleUnityLog(string logString, string stackTrace, LogType logType) {
+    private static void HandleUnityLog(string logString, string stackTrace, LogType logType) {
         switch (logType) {
             case LogType.Error:
                 if (_config.LogUnityErrors == false) {

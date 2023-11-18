@@ -6,7 +6,6 @@ public class ConsoleConfig : ScriptableObject {
 
 #region Public
     public bool SurviveSceneChanges => _surviveSceneChanges;
-    public ConsoleHistory ConsoleHistory => _consoleHistory;
     public int LogHistoryCapacity => _logHistoryCapacity;
     public int CommandHistoryCapacity => _commandHistoryCapacity;
     public bool EnableCoreCommands => _enableCoreCommands;
@@ -15,15 +14,11 @@ public class ConsoleConfig : ScriptableObject {
     public bool LogUnityWarnings => _logUnityWarnings;
     public bool LogUnityLogs => _logUnityLogs;
     public bool LogUnityExceptions => _logUnityExceptions;
-    public ConsoleView[] Views => _views;
 #endregion Public
 
 #region Private
     [Header("Instantiation")]
     [SerializeField] private bool _surviveSceneChanges = true;
-
-    [Header("History")]
-    [SerializeField] private ConsoleHistory _consoleHistory;
 
     [Tooltip("Set to -1 to not limit the number of logs stored")]
     [SerializeField] private int _logHistoryCapacity = -1;
@@ -41,10 +36,6 @@ public class ConsoleConfig : ScriptableObject {
     [SerializeField] private bool _logUnityWarnings = true;
     [SerializeField] private bool _logUnityLogs = true;
     [SerializeField] private bool _logUnityExceptions = true;
-
-    [Header("Views")]
-    [Tooltip("Select which console view implementations to use")]
-    [SerializeField] private ConsoleView[] _views;
 #endregion Private
 
 }

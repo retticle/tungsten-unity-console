@@ -10,7 +10,6 @@ public static class ConsoleCoreCommands {
         Console.AddCommand("Console.LogError", ConsoleLogError, "Display error message to console.");
         Console.AddCommand("Console.Save", ConsoleSave, "Save console to log file.");
         Console.AddCommand("Console.Copy", ConsoleCopy, "Copy console to clipboard.");
-        Console.AddCommand("Console.Clear", ConsoleClear, "Clear console.");
         Console.AddCommand("Help", Help, "List of commands and their help text");
 
         Console.AddCommand("Debug.Log", DebugLog, "Logs message to the Unity Console.");
@@ -54,10 +53,6 @@ public static class ConsoleCoreCommands {
 
     private static void ConsoleCopy(string[] args) {
         Console.CopyHistoryToClipboard();
-    }
-
-    private static void ConsoleClear(string[] args) {
-        Console.ClearConsoleView();
     }
 
     private static void Help(string[] args) {

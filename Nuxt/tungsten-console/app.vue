@@ -23,19 +23,21 @@
     // routes
     const port: number = 8181;
     const httpUrl: string = `http://localhost:${port}`;
-    const wsUrl: string = `ws://localhost:${port}`;
+    // const wsUrl: string = `ws://localhost:${port}`;
 
     const logRoute: string = "/log";
     const commandRoute: string = "/command";
 
     const input = ref<string>("");
 
-    let socket: WebSocket;
+    // let socket: WebSocket;
 
     // logs
     const intervalTimeout: number = 100;
     const intervalId = ref<number>(-1);
     const logs = ref<Log[]>([]);
+
+    const toast = useToast();
 
     onMounted(() => {
         // start fetching logs
@@ -98,6 +100,8 @@
         }).catch((error) => {
             // todo display a toast notification with the error
             console.error(`Failed to fetch new logs: ${error}`);
+
+            toast.add({ title: "Failed to fetch new logs", description: error })
         });
     }
 
@@ -114,6 +118,7 @@
 
 <template>
     <div class="console">
+        <UNotifications />
         <div class="log">
             <div class="log-entry" v-for="(log, index) in logs" :key="index">
                 {{ log.logString }}
