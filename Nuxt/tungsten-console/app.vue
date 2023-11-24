@@ -6,13 +6,17 @@
         data: T;
     }
 
-    // todo: do we need this type?
     interface Logs {
         logs: Log[];
     }
 
+    // interface LogRequest {
+    //     timeStamp: Date;
+    // }
+
     interface Log {
         logString: string;
+        timeStamp: string;
         stackTrace: string;
         logType: string;
         customColor: boolean;
@@ -82,7 +86,10 @@
     });
 
     async function fetchNewLogs() {
-        await fetch(`${httpUrl}${logRoute}`, {
+        let timeStamp: string = logs.value.length > 0 ? logs.value[logs.value.length - 1].timeStamp : "0";
+        // let timeStampStr: string = timeStamp.toISOString();
+
+        await fetch(`${httpUrl}${logRoute}?timeStamp=${timeStamp}`, {
             method: "GET",
             headers: {"Content-Type": "application/json"},
         }).then((data: Response) => {

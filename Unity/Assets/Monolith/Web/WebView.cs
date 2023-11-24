@@ -13,23 +13,8 @@ namespace Monolith.Web {
 public class WebView : MonoBehaviour {
 
 #region Types
-    // public class WebSocketMessage<T> {
-    //     public string type;
-    //     public T data;
-    // }
-
-    // public struct Route {
-        // public readonly string httpMethod;
-        // public readonly string path;
-
-        // public Route(string httpMethod, string path) {
-            // this.httpMethod = httpMethod;
-            // this.path = path;
-        // }
-    // }
-
     [Serializable]
-    private struct NewLogsResponse {
+    private struct LogResponse {
         public ConsoleLog[] logs;
     }
 #endregion Types
@@ -41,19 +26,8 @@ public class WebView : MonoBehaviour {
     private Thread _listenerThread;
     private string _dataPath;
 
-    // private Dictionary<Route, Action> _routeActions = new();
-
-    /// <summary>
-    /// Queue of logs that have been added since the last time the queue was processed.
-    /// Should we store this per client?
-    /// </summary>
-    private readonly Queue<ConsoleLog> _logQueue = new();
-
     private readonly Queue<Action> _actionQueue = new();
 #endregion Fields
-
-#region Public
-#endregion Public
 
 #region Private
     private void Awake() {
@@ -65,16 +39,10 @@ public class WebView : MonoBehaviour {
 
         _listenerThread = new Thread(StartListener);
         _listenerThread.Start();
-
-        Console.AddLogAddedListener(OnLogAdded);
     }
 
     private void OnDestroy() {
         Cleanup();
-    }
-
-    private void OnLogAdded(ConsoleLog consoleLog) {
-        _logQueue.Enqueue(consoleLog);
     }
 
     private void Update() {
@@ -106,7 +74,9 @@ public class WebView : MonoBehaviour {
                     action = () => ServeFile(response, Path.Combine(_dataPath, "index.html"));
                 }
                 else if (request is { HttpMethod: "GET", Url: { AbsolutePath: "/log", }, }) {
-                    action = () => ServeNewLogs(response);
+                    action = () => {
+                        ServeLogs(request, response);
+                    };
                 }
                 else if (request is { HttpMethod: "POST", Url: { AbsolutePath: "/command", }, }) {
                     action = () => HandleCommand(request);
@@ -142,47 +112,6 @@ public class WebView : MonoBehaviour {
         }
     }
 
-    // private async void HandleWebSocketRequest(HttpListenerContext context,  HttpListenerRequest request) {
-    //     Debug.Log("[Console] [WebView] WebSocket request received.");
-    //
-    //     string subProtocol = request.Headers["Sec-WebSocket-Protocol"];
-    //     HttpListenerWebSocketContext webSocketContext = await context.AcceptWebSocketAsync(subProtocol);
-    //     HandleWebSocket(webSocketContext.WebSocket);
-    // }
-
-    // private async void HandleWebSocket(WebSocket webSocket) {
-    //     Debug.Log("[Console] [WebView] WebSocket opened.");
-    //
-    //     var buffer = new byte[1024];
-    //     WebSocketReceiveResult result;
-    //
-    //     do {
-    //         result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-    //
-    //         string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
-    //         Debug.Log($"[Console] [WebView] Received message: {receivedMessage}");
-    //
-    //         if(_logQueue.Count > 0) {
-    //             NewLogsResponse outputObj = new() {
-    //                 logs = _logQueue.ToArray(),
-    //             };
-    //
-    //             _logQueue.Clear();
-    //
-    //             WebSocketMessage<NewLogsResponse> message = new() {
-    //                 type = "logs_new",
-    //                 data = outputObj,
-    //             };
-    //             string outStr = JsonConvert.SerializeObject(message, new ColorJsonConverter());
-    //
-    //             buffer = Encoding.UTF8.GetBytes(outStr);
-    //             await webSocket.SendAsync(new ArraySegment<byte>(buffer, 0, buffer.Length), WebSocketMessageType.Text, true, CancellationToken.None);
-    //         }
-    //     } while (result.CloseStatus.HasValue == false);
-    //
-    //     Debug.Log($"[Console] [WebView] WebSocket closed: {result.CloseStatus.Value} {result.CloseStatusDescription}");
-    // }
-
     private void HandleCommand(HttpListenerRequest request) {
         using StreamReader reader = new(request.InputStream, request.ContentEncoding);
         string content = reader.ReadToEnd();
@@ -202,11 +131,15 @@ public class WebView : MonoBehaviour {
         output.Close();
     }
 
-    private void ServeNewLogs(HttpListenerResponse response) {
-        NewLogsResponse outputObj = new() {
-            logs = _logQueue.ToArray(),
+    private static void ServeLogs(HttpListenerRequest request, HttpListenerResponse response) {
+        System.Collections.Specialized.NameValueCollection parameters = request.QueryString;
+        bool gotTimeStamp = DateTime.TryParse(parameters.Get("timeStamp"), out DateTime dateTime);
+
+        // create response
+        List<ConsoleLog> logs = Console.GetLogsSince(gotTimeStamp ? dateTime : DateTime.MinValue);
+        LogResponse outputObj = new() {
+            logs = logs.ToArray(),
         };
-        _logQueue.Clear();
         string outStr = JsonConvert.SerializeObject(outputObj, new ColorJsonConverter());
 
         byte[] buffer = Encoding.UTF8.GetBytes(outStr);
@@ -216,12 +149,6 @@ public class WebView : MonoBehaviour {
         output.Write(buffer, 0, buffer.Length);
         output.Close();
     }
-
-    // private bool IsWebSocketUpgrade(HttpListenerRequest request) {
-    //     return
-    //         request.Headers["Upgrade"]?.ToLower() == "websocket"
-    //      && request.Headers["Connection"]?.ToLower() == "upgrade";
-    // }
 
     private static string GetMimeType(string filePath) {
         string extension = Path.GetExtension(filePath).ToLower();

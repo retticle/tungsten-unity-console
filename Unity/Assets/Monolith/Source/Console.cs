@@ -161,6 +161,26 @@ public class Console : MonoBehaviour {
         return path.Replace("\\", "/");
     }
 
+    public static List<ConsoleLog> GetLogsSince(DateTime sinceTime) {
+        if (_logHistory.Count > 0 && _logHistory[^1].timeStamp > sinceTime) {
+            for (int i = _logHistory.Count - 1; i >= 0; i--) {
+                if (_logHistory[i].timeStamp <= sinceTime) {
+                    // we found a log that is older than sinceTime
+                    // so we want to include ALL logs AFTER this one
+                    // return the list from i + 1 to the end of the list
+                    return _logHistory.GetRange(i + 1, _logHistory.Count - i - 1);
+                }
+            }
+
+            // we didn't find a log that is older than sinceTime
+            // so we want to include ALL logs
+            return _logHistory;
+        }
+
+        // return _logHistory.Where(log => log.dateTime > sinceTime).ToList();
+        return new List<ConsoleLog>();
+    }
+
     public static void AddLogAddedListener(Action<ConsoleLog> callback) {
         _newLogAdded += callback;
     }
