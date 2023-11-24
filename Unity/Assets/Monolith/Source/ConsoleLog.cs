@@ -2,7 +2,7 @@ using System;
 
 using UnityEngine;
 
-namespace Monolith {
+namespace Tungsten.Console {
 
 [Serializable]
 public struct ConsoleLog {

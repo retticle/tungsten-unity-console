@@ -2,8 +2,8 @@
 
 using UnityEngine;
 
-namespace Monolith.UGUI {
-[CreateAssetMenu(menuName = "Monolith/Console/Obelisk ColorSet Asset", fileName = "ObeliskColorSet_")]
+namespace Tungsten.Console.UGUI {
+[CreateAssetMenu(menuName = "Tungsten/Console/UGUI ColorSet Asset", fileName = "UguiColorSet_")]
 public class ColorSet : ScriptableObject {
 
 #region Private Methods

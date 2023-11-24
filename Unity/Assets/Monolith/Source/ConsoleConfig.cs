@@ -1,7 +1,7 @@
 using UnityEngine;
 
-namespace Monolith {
-[CreateAssetMenu(menuName = "Monolith/Console/Console Config Asset", fileName = "ConsoleConfig")]
+namespace Tungsten.Console {
+[CreateAssetMenu(menuName = "Tungsten/Console/Console Config Asset", fileName = "ConsoleConfig")]
 public class ConsoleConfig : ScriptableObject {
 
 #region Public

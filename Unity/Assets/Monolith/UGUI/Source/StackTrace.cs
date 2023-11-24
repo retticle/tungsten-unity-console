@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace Monolith.UGUI {
+namespace Tungsten.Console.UGUI {
 public class StackTrace : MonoBehaviour {
 
 #region Properties

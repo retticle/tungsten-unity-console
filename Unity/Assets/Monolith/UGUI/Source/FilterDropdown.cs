@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace Monolith.UGUI {
+namespace Tungsten.Console.UGUI {
 public class FilterDropdown : MonoBehaviour {
 
 #region Properties

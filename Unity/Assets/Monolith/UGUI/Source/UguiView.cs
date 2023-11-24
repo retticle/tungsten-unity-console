@@ -9,7 +9,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 
-namespace Monolith.UGUI {
+namespace Tungsten.Console.UGUI {
 public class UguiView : MonoBehaviour {
 
 #region Fields
@@ -17,7 +17,7 @@ public class UguiView : MonoBehaviour {
     private RectTransform _container;
 
     [SerializeField] private ListenForDimensionsChange _containerListener;
-    [SerializeField] private Transform _obeliskLogPoolContainer;
+    [SerializeField] private Transform _uguiLogPoolContainer;
     [SerializeField] private Image _containerBackgroundImage;
     [SerializeField] private Outline _outline;
     [SerializeField] private Image _resizeHandleImage;
@@ -65,17 +65,16 @@ public class UguiView : MonoBehaviour {
     [Header("Settings"), SerializeField,]
     private int _logViewHistoryMax = 64;
 
-    [FormerlySerializedAs("_obeliskLogPrefab"),Header("Obelisk Prefabs"), SerializeField,]
-    private Log logPrefab;
+    [Header("Prefabs")]
+    [SerializeField,] private Log logPrefab;
+    [SerializeField] private StackTrace stackTracePrefab;
 
-    [FormerlySerializedAs("_obeliskStackTracePrefab"),SerializeField] private StackTrace stackTracePrefab;
-
-    [Header("Obelisk Color Set"), Tooltip("Color set objects.\nMust be in same order as DefaultViewColorSetName enum."),
-     SerializeField,]
-    private ColorSet _colorSetAsset;
+    [Header("Color Set")]
+    [Tooltip("Color set objects.\nMust be in same order as DefaultViewColorSetName enum.")]
+    [SerializeField] private ColorSet _colorSetAsset;
 
     private readonly List<Log> _logViewHistory = new();
-    private readonly Queue<Log> _obeliskLogPool = new();
+    private readonly Queue<Log> _logPool = new();
     private StackTrace _stackTrace;
     private ColorSet _instantiatedColorSet;
 
@@ -213,12 +212,12 @@ public class UguiView : MonoBehaviour {
     }
 
     private void OnLogAdded(ConsoleLog consoleLog) {
-        var obeliskLog = _obeliskLogPool.Dequeue();
-        obeliskLog.transform.SetParent(_logLayout, false);
+        Log log = _logPool.Dequeue();
+        log.transform.SetParent(_logLayout, false);
 
-        obeliskLog.SetLog(ref consoleLog);
+        log.SetLog(ref consoleLog);
 
-        AddLogViewHistory(obeliskLog);
+        AddLogViewHistory(log);
     }
 
     private void AddLogViewHistory(Log log) {
@@ -236,15 +235,15 @@ public class UguiView : MonoBehaviour {
 
     private void FillPool() {
         for (var i = 0; i < _logViewHistoryMax + 1; i++) {
-            var log = Instantiate(logPrefab, _obeliskLogPoolContainer, false);
+            var log = Instantiate(logPrefab, _uguiLogPoolContainer, false);
             log.Init(this, _instantiatedColorSet);
-            _obeliskLogPool.Enqueue(log);
+            _logPool.Enqueue(log);
         }
     }
 
     private void PoolLog(Log log) {
-        log.transform.SetParent(_obeliskLogPoolContainer, false);
-        _obeliskLogPool.Enqueue(log);
+        log.transform.SetParent(_uguiLogPoolContainer, false);
+        _logPool.Enqueue(log);
     }
 
     private void ResizeLogLayout() {
@@ -332,7 +331,7 @@ public class UguiView : MonoBehaviour {
             return;
         }
 
-        Monolith.Console.ExecuteCommand(_commandInputField.text);
+        Console.ExecuteCommand(_commandInputField.text);
         _commandInputField.text = "";
         _commandInputField.ActivateInputField();
         _commandHistoryDelta = 0;
@@ -366,16 +365,13 @@ public class UguiView : MonoBehaviour {
     }
 
     private void CommandAutoComplete() {
-        var input = _commandInputField.text.Trim();
+        string input = _commandInputField.text.Trim();
 
         if (string.IsNullOrEmpty(input)) {
             return;
         }
 
-        var commands = Monolith.Console.GetOrderedCommands().Where(command =>
-                                                                       command.commandName.StartsWith(
-                                                                           input, StringComparison.CurrentCultureIgnoreCase))
-                               .ToList();
+        List<ConsoleCommand> commands = Console.GetOrderedCommands().Where(command => command.commandName.StartsWith(input, StringComparison.CurrentCultureIgnoreCase)).ToList();
 
         switch (commands.Count) {
             case 0: {
@@ -403,7 +399,7 @@ public class UguiView : MonoBehaviour {
             stringBuilder.Append($"{command.commandName}\t\t");
         }
 
-        Monolith.Console.Log(stringBuilder.ToString(), LogType.Log, false);
+        Console.Log(stringBuilder.ToString(), LogType.Log, false);
     }
 #endregion Private
 

@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 
 using UnityEngine;
 
-namespace Monolith {
+namespace Tungsten.Console {
 public class Console : MonoBehaviour {
 
 #region Fields

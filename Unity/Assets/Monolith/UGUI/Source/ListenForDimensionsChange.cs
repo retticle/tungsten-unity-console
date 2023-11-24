@@ -2,7 +2,7 @@ using System;
 
 using UnityEngine;
 
-namespace Monolith.UGUI {
+namespace Tungsten.Console.UGUI {
 public class ListenForDimensionsChange : MonoBehaviour {
 
 #region Fields

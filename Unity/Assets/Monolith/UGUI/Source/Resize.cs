@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Monolith.UGUI {
+namespace Tungsten.Console.UGUI {
 public class Resize : MonoBehaviour {
 
 #region Fields

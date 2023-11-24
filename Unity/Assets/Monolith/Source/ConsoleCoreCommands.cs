@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Monolith {
+namespace Tungsten.Console {
 public static class ConsoleCoreCommands {
 
 #region Public Methods

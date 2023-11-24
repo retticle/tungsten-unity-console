@@ -1,4 +1,4 @@
-﻿namespace Monolith {
+﻿namespace Tungsten.Console {
 
 /// <summary>
 /// Contains information about each command.

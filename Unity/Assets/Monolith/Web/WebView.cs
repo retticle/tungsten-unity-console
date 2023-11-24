@@ -9,7 +9,7 @@ using Newtonsoft.Json;
 
 using UnityEngine;
 
-namespace Monolith.Web {
+namespace Tungsten.Console.Web {
 public class WebView : MonoBehaviour {
 
 #region Types
