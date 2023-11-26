@@ -3560,7 +3560,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _container: {fileID: 224492747251803400}
   _containerListener: {fileID: 114539048691606374}
-  _obeliskLogPoolContainer: {fileID: 224695956235711378}
+  _uguiLogPoolContainer: {fileID: 224695956235711378}
   _containerBackgroundImage: {fileID: 114626083654977808}
   _outline: {fileID: 114789529542733322}
   _resizeHandleImage: {fileID: 114917442224158824}

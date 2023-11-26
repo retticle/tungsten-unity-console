@@ -1,18 +1,9 @@
 <script setup lang="ts">
     import {ref} from "vue"
 
-    interface WebSocketMessage<T> {
-        type: string;
-        data: T;
-    }
-
     interface Logs {
         logs: Log[];
     }
-
-    // interface LogRequest {
-    //     timeStamp: Date;
-    // }
 
     interface Log {
         logString: string;
@@ -27,17 +18,14 @@
     // routes
     const port: number = 8181;
     const httpUrl: string = `http://localhost:${port}`;
-    // const wsUrl: string = `ws://localhost:${port}`;
 
     const logRoute: string = "/log";
     const commandRoute: string = "/command";
 
     const input = ref<string>("");
 
-    // let socket: WebSocket;
-
     // logs
-    const intervalTimeout: number = 100;
+    const intervalTimeout: number = 1000;
     const intervalId = ref<number>(-1);
     const logs = ref<Log[]>([]);
 
@@ -48,46 +36,10 @@
         intervalId.value = setInterval(() => {
             fetchNewLogs();
         }, intervalTimeout) as unknown as number;
-
-        // socket = new WebSocket(wsUrl);
-        //
-        // // connection opened
-        // socket.addEventListener("open", function (event) {
-        //     console.log("Server connection opened");
-        //     socket.send("Hello Server!");
-        // });
-        //
-        // // connection closed
-        // socket.addEventListener("close", function (event) {
-        //     console.log("Server connection closed: ", event.code);
-        // });
-        //
-        // // listen for messages
-        // socket.addEventListener("message", function (event) {
-        //     let message = JSON.parse(event.data);
-        //
-        //     console.log("Message from server: ", event.data);
-        //
-        //     switch(message.type) {
-        //         case "logs_new":
-        //             let newLogs: Logs = message.data;
-        //             logs.value.push(...newLogs.logs);
-        //         break;
-        //
-        //         default:
-        //             console.error(`Unknown message type: ${message.type}`);
-        //     }
-        // });
-        //
-        // // listen for errors
-        // socket.addEventListener("error", function (event) {
-        //     console.log("Error from server: ", event)
-        // });
     });
 
     async function fetchNewLogs() {
         let timeStamp: string = logs.value.length > 0 ? logs.value[logs.value.length - 1].timeStamp : "0";
-        // let timeStampStr: string = timeStamp.toISOString();
 
         await fetch(`${httpUrl}${logRoute}?timeStamp=${timeStamp}`, {
             method: "GET",
@@ -105,9 +57,7 @@
                 console.error(`Failed to parse response: ${error}`);
             });
         }).catch((error) => {
-            // todo display a toast notification with the error
             console.error(`Failed to fetch new logs: ${error}`);
-
             toast.add({ title: "Failed to fetch new logs", description: error })
         });
     }

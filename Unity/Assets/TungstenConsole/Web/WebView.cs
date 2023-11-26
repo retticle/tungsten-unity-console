@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -8,6 +9,7 @@ using System.Threading;
 using Newtonsoft.Json;
 
 using UnityEngine;
+using UnityEngine.Networking;
 
 namespace Tungsten.Console.Web {
 public class WebView : MonoBehaviour {
@@ -25,14 +27,12 @@ public class WebView : MonoBehaviour {
     private HttpListener _listener;
     private Thread _listenerThread;
     private string _dataPath;
-
     private readonly Queue<Action> _actionQueue = new();
 #endregion Fields
 
 #region Private
     private void Awake() {
-        // todo: can we use resources instead?
-        _dataPath = $"{Application.dataPath}/www";
+        _dataPath = Path.Combine(Application.streamingAssetsPath, "TungstenConsole");
 
         _listener = new HttpListener();
         _listener.Prefixes.Add($"http://*:{PORT}/"); // Bind to all IPs on the machine, port 8080.
@@ -41,15 +41,14 @@ public class WebView : MonoBehaviour {
         _listenerThread.Start();
     }
 
-    private void OnDestroy() {
-        Cleanup();
+    private void Update() {
+        while (_actionQueue.Count > 0) {
+            _actionQueue.Dequeue()?.Invoke();
+        }
     }
 
-    private void Update() {
-        // process action queue
-        while (_actionQueue.Count > 0) {
-            _actionQueue.Dequeue().Invoke();
-        }
+    private void OnDestroy() {
+        Cleanup();
     }
 
     private void Cleanup() {
@@ -71,33 +70,23 @@ public class WebView : MonoBehaviour {
 
                 Action action;
                 if (request is { HttpMethod: "GET", Url: { AbsolutePath: "/", }, }) {
-                    action = () => ServeFile(response, Path.Combine(_dataPath, "index.html"));
+                    action = () => StartCoroutine(HandleServeFileRoutine(response, Path.Combine(_dataPath, "index.html")));
                 }
                 else if (request is { HttpMethod: "GET", Url: { AbsolutePath: "/log", }, }) {
-                    action = () => {
-                        ServeLogs(request, response);
-                    };
+                    action = () => HandleLogs(request, response);
                 }
                 else if (request is { HttpMethod: "POST", Url: { AbsolutePath: "/command", }, }) {
                     action = () => HandleCommand(request);
                 }
                 else if (request is { HttpMethod: "GET", }) {
-                    action = () => {
-                        if (File.Exists(filePath)) {
-                            ServeFile(response, filePath);
-                        }
-                        else {
-                            response.StatusCode = 404;
-                            response.StatusDescription = "File not found.";
-                            response.Close();
-                        }
-                    };
+                    action = () => StartCoroutine(HandleServeFileRoutine(response, filePath));
                 }
                 else {
                     action = null;
                 }
 
-                action?.Invoke();
+                // action?.Invoke();
+                _actionQueue.Enqueue(action);
             }
             catch (HttpListenerException e) {
                 // listener was stopped, exit the loop
@@ -117,21 +106,34 @@ public class WebView : MonoBehaviour {
         string content = reader.ReadToEnd();
         Dictionary<string, string> data = JsonConvert.DeserializeObject<Dictionary<string, string>>(content);
 
-        _actionQueue.Enqueue(() => { Console.ExecuteCommand(data["command"]); });
+        Console.ExecuteCommand(data["command"]);
     }
 
-    private static void ServeFile(HttpListenerResponse response, string filePath) {
+    private static IEnumerator HandleServeFileRoutine(HttpListenerResponse response, string filePath) {
         string mimeType = GetMimeType(filePath);
-        byte[] fileBytes = File.ReadAllBytes(filePath);
 
-        response.ContentType = mimeType;
-        response.ContentLength64 = fileBytes.Length;
-        Stream output = response.OutputStream;
-        output.Write(fileBytes, 0, fileBytes.Length);
-        output.Close();
+        using UnityWebRequest webRequest = UnityWebRequest.Get(filePath);
+        yield return webRequest.SendWebRequest();
+
+        if (webRequest.result != UnityWebRequest.Result.Success) {
+            Debug.LogError($"[Console] [WebView] Error loading file: {webRequest.error}");
+
+            response.StatusCode = 404;
+            response.StatusDescription = "File not found.";
+            response.Close();
+        }
+        else {
+            byte[] fileBytes = webRequest.downloadHandler.data;
+
+            response.ContentType = mimeType;
+            response.ContentLength64 = fileBytes.Length;
+            Stream output = response.OutputStream;
+            output.Write(fileBytes, 0, fileBytes.Length);
+            output.Close();
+        }
     }
 
-    private static void ServeLogs(HttpListenerRequest request, HttpListenerResponse response) {
+    private static void HandleLogs(HttpListenerRequest request, HttpListenerResponse response) {
         System.Collections.Specialized.NameValueCollection parameters = request.QueryString;
         bool gotTimeStamp = DateTime.TryParse(parameters.Get("timeStamp"), out DateTime dateTime);
 
