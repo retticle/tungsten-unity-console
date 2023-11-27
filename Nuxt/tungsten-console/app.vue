@@ -14,14 +14,15 @@
         // textColor: Color;
         // bgColor: Color;
     }
-
+    
     // routes
-    const port: number = 8181;
-    const httpUrl: string = `http://localhost:${port}`;
+    const defaultPort: number = 3000;
+    let httpUrl: string = `http://localhost:${defaultPort}`;
 
     const logRoute: string = "/log";
     const commandRoute: string = "/command";
 
+    // input
     const input = ref<string>("");
 
     // logs
@@ -29,9 +30,15 @@
     const intervalId = ref<number>(-1);
     const logs = ref<Log[]>([]);
 
+    // notifications
     const toast = useToast();
 
     onMounted(() => {
+        // get the current host and port
+        const host = window.location.hostname;
+        const port = window.location.port || defaultPort;
+        httpUrl = `http://${host}:${port}`;
+
         // start fetching logs
         intervalId.value = setInterval(() => {
             fetchNewLogs();

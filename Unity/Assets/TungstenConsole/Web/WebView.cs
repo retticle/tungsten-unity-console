@@ -22,7 +22,7 @@ public class WebView : MonoBehaviour {
 #endregion Types
 
 #region Fields
-    private const int PORT = 8181;
+    private const int PORT = 3000;
 
     private HttpListener _listener;
     private Thread _listenerThread;
@@ -35,7 +35,7 @@ public class WebView : MonoBehaviour {
         _dataPath = Path.Combine(Application.streamingAssetsPath, "TungstenConsole");
 
         _listener = new HttpListener();
-        _listener.Prefixes.Add($"http://*:{PORT}/"); // Bind to all IPs on the machine, port 8080.
+        _listener.Prefixes.Add($"http://*:{PORT}/");
 
         _listenerThread = new Thread(StartListener);
         _listenerThread.Start();
