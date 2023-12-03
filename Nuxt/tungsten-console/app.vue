@@ -1,5 +1,6 @@
 <script setup lang="ts">
-    import {ref} from "vue"
+    import { ref } from "vue"
+    import { nextTick } from "vue";
 
     interface Logs {
         logs: Log[];
@@ -14,6 +15,22 @@
         // textColor: Color;
         // bgColor: Color;
     }
+
+    const columns = [
+    {
+        key: "timeStamp",
+        label: "Time",
+        class: "w-1/6",
+    },
+    {
+        key: "logType",
+        label: "Type",
+    },
+    {
+        key: "logString",
+        label: "Log",
+    },
+    ];
     
     // routes
     const defaultPort: number = 3000;
@@ -22,13 +39,28 @@
     const logRoute: string = "/log";
     const commandRoute: string = "/command";
 
+    // log
+    const logContainer = ref<HTMLDivElement | null>(null);
+
     // input
     const input = ref<string>("");
+
+    // search
+    const search = ref<string>("");
 
     // logs
     const intervalTimeout: number = 1000;
     const intervalId = ref<number>(-1);
     const logs = ref<Log[]>([]);
+    const filteredLogs = computed(() => {
+        if (!search.value) {
+            return logs.value;
+        }
+
+        return logs.value.filter((log) => {
+            return log.logString.toLowerCase().includes(search.value.toLowerCase());
+        });
+    })
 
     // notifications
     const toast = useToast();
@@ -58,7 +90,14 @@
             }
 
             data.json().then((newLogs: Logs) => {
-                logs.value.push(...newLogs.logs);
+                if (newLogs.logs.length > 0) {
+                    logs.value.push(...newLogs.logs);
+
+                    nextTick(() => {
+                        if(logContainer.value) {
+                        logContainer.value.scrollTop = logContainer.value.scrollHeight;
+                    }});
+                }
             }).catch((error) => {
                 // todo display a toast notification with the error
                 console.error(`Failed to parse response: ${error}`);
@@ -83,11 +122,11 @@
 <template>
     <div class="console">
         <UNotifications />
-        <div class="log">
-            <div class="log-entry" v-for="(log, index) in logs" :key="index">
-                {{ log.logString }}
-            </div>
-
+        <div class="log" ref="logContainer">
+<!--            <div class="log-entry" v-for="(log, index) in logs" :key="index">-->
+<!--                {{ log.logString }}-->
+<!--            </div>-->
+            <UTable :columns="columns" :rows="filteredLogs" />
         </div>
 
         <div class="input">
@@ -107,6 +146,7 @@
                     size="sm"
                     color="white"
                     :trailing="false"
+                    v-model="search"
                 />
             </div>
         </div>
@@ -146,4 +186,5 @@
     margin-left: 16px;
     width: 300px;
 }
+
 </style>
