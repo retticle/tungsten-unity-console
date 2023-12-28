@@ -1,39 +1,29 @@
 <script setup lang="ts">
     import { ref } from "vue"
     import { nextTick } from "vue";
+    import {LogData} from "~/types/LogData";
 
     interface Logs {
-        logs: Log[];
+        logs: LogData[];
     }
 
-    interface Log {
-        logString: string;
-        timeStamp: string;
-        stackTrace: string;
-        logType: string;
-        customColor: boolean;
-        // textColor: Color;
-        // bgColor: Color;
-    }
-
-    const columns = [
-    {
-        key: "timeStamp",
-        label: "Time",
-        class: "w-1/6",
-    },
-    {
-        key: "logType",
-        label: "Type",
-    },
-    {
-        key: "logString",
-        label: "Log",
-    },
-    ];
+    // const columns = [
+    // {
+    //     key: "timeStamp",
+    //     label: "Time",
+    // },
+    // {
+    //     key: "logType",
+    //     label: "Type",
+    // },
+    // {
+    //     key: "logString",
+    //     label: "Log",
+    // },
+    // ];
     
     // routes
-    const defaultPort: number = 3000;
+    const defaultPort: number = 3001;
     let httpUrl: string = `http://localhost:${defaultPort}`;
 
     const logRoute: string = "/log";
@@ -51,7 +41,7 @@
     // logs
     const intervalTimeout: number = 1000;
     const intervalId = ref<number>(-1);
-    const logs = ref<Log[]>([]);
+    const logs = ref<LogData[]>([]);
     const filteredLogs = computed(() => {
         if (!search.value) {
             return logs.value;
@@ -69,7 +59,7 @@
         // get the current host and port
         const host = window.location.hostname;
         const port = window.location.port || defaultPort;
-        httpUrl = `http://${host}:${port}`;
+        // httpUrl = `http://${host}:${port}`;
 
         // start fetching logs
         intervalId.value = setInterval(() => {
@@ -126,7 +116,9 @@
 <!--            <div class="log-entry" v-for="(log, index) in logs" :key="index">-->
 <!--                {{ log.logString }}-->
 <!--            </div>-->
-            <UTable :columns="columns" :rows="filteredLogs" />
+<!--            <UTable :columns="columns" :rows="filteredLogs" />-->
+
+            <Log v-for="(log, index) in filteredLogs" :key="index" :log="log" />
         </div>
 
         <div class="input">
