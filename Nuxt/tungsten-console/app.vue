@@ -7,24 +7,12 @@
         logs: LogData[];
     }
 
-    // const columns = [
-    // {
-    //     key: "timeStamp",
-    //     label: "Time",
-    // },
-    // {
-    //     key: "logType",
-    //     label: "Type",
-    // },
-    // {
-    //     key: "logString",
-    //     label: "Log",
-    // },
-    // ];
-    
     // routes
-    const defaultPort: number = 3001;
-    let httpUrl: string = `http://localhost:${defaultPort}`;
+    const port = ref<string>("3000");
+    const host = ref<string>("localhost");
+    const httpUrl = computed(() => {
+        return `http://${host}:${port.value}`;
+    });
 
     const logRoute: string = "/log";
     const commandRoute: string = "/command";
@@ -57,9 +45,8 @@
 
     onMounted(() => {
         // get the current host and port
-        const host = window.location.hostname;
-        const port = window.location.port || defaultPort;
-        // httpUrl = `http://${host}:${port}`;
+        host.value = window.location.hostname;
+        port.value = window.location.port || port.value;
 
         // start fetching logs
         intervalId.value = setInterval(() => {
@@ -113,11 +100,6 @@
     <div class="console">
         <UNotifications />
         <div class="log" ref="logContainer">
-<!--            <div class="log-entry" v-for="(log, index) in logs" :key="index">-->
-<!--                {{ log.logString }}-->
-<!--            </div>-->
-<!--            <UTable :columns="columns" :rows="filteredLogs" />-->
-
             <Log v-for="(log, index) in filteredLogs" :key="index" :log="log" />
         </div>
 
@@ -157,10 +139,6 @@
 .log {
     flex: 1;
     overflow-y: auto;
-}
-
-.log-entry {
-    padding: 16px;
 }
 
 .input {

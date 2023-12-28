@@ -22,7 +22,7 @@ public class WebView : MonoBehaviour {
 #endregion Types
 
 #region Fields
-    private const int PORT = 3001;
+    private const int PORT = 3000;
 
     private HttpListener _listener;
     private Thread _listenerThread;
