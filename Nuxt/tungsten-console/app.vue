@@ -8,10 +8,10 @@
     }
 
     // routes
-    const port = ref<string>("3000");
     const host = ref<string>("localhost");
+    const port = ref<string>("3001");
     const httpUrl = computed(() => {
-        return `http://${host}:${port.value}`;
+        return `http://${host.value}:${port.value}`;
     });
 
     const logRoute: string = "/log";
@@ -45,8 +45,8 @@
 
     onMounted(() => {
         // get the current host and port
-        host.value = window.location.hostname;
-        port.value = window.location.port || port.value;
+        // host.value = window.location.hostname;
+        // port.value = window.location.port || port.value;
 
         // start fetching logs
         intervalId.value = setInterval(() => {
@@ -57,12 +57,19 @@
     async function fetchNewLogs() {
         let timeStamp: string = logs.value.length > 0 ? logs.value[logs.value.length - 1].timeStamp : "0";
 
-        await fetch(`${httpUrl}${logRoute}?timeStamp=${timeStamp}`, {
+        let failed: boolean = false;
+        let error: string = "";
+
+        let url: string = `${httpUrl.value}${logRoute}?timeStamp=${timeStamp}`;
+
+        await fetch(url, {
             method: "GET",
             headers: {"Content-Type": "application/json"},
         }).then((data: Response) => {
             if (!data.ok) {
                 console.error(`Failed to fetch new logs ${data.status}`);
+                failed = true;
+                error = data.statusText;
                 return;
             }
 
