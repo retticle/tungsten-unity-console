@@ -93,7 +93,7 @@
     }
 
     function submitCommand() {
-        fetch(`${httpUrl}${commandRoute}`, {
+        fetch(`${httpUrl.value}${commandRoute}`, {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({command: input.value})
