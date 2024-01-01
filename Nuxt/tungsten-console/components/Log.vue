@@ -18,6 +18,8 @@
 .log-container {
     width: 100%;
     //height: 25px;
+    padding-left: 16px;
+    padding-right: 16px;
     display: flex;
     flex-direction: row;
 }

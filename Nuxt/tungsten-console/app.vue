@@ -43,6 +43,9 @@
     // notifications
     const toast = useToast();
 
+    // autoscroll
+    const autoscroll = ref<boolean>(true);
+
     onMounted(() => {
         // get the current host and port
         // host.value = window.location.hostname;
@@ -78,7 +81,8 @@
                     logs.value.push(...newLogs.logs);
 
                     nextTick(() => {
-                        if(logContainer.value) {
+                        if(autoscroll.value
+                        && logContainer.value) {
                         logContainer.value.scrollTop = logContainer.value.scrollHeight;
                     }});
                 }
@@ -130,6 +134,17 @@
                     v-model="search"
                 />
             </div>
+
+            <UButton
+                class="btn-scroll"
+                icon="i-heroicons-arrow-down-20-solid"
+                size="sm"
+                color="primary"
+                square
+                :variant="autoscroll ? 'solid' : 'outline'"
+                @click="autoscroll = !autoscroll"
+            />
+
         </div>
     </div>
 </template>
@@ -152,6 +167,7 @@
     width: 100%;
     padding: 16px;
     display: flex;
+    gap: 16px;
     flex-direction: row;
 }
 
@@ -160,8 +176,12 @@
 }
 
 .search {
-    margin-left: 16px;
     width: 300px;
+}
+
+.btn-scroll {
+    width: 32px;
+    height: 32px;
 }
 
 </style>
